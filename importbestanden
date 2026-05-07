@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ToF — Import Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --black: #1a1a1a;
+    --dark: #2a2a2a;
+    --mid: #555;
+    --light: #888;
+    --border: #e0e0e0;
+    --bg: #f8f8f6;
+    --white: #ffffff;
+    --accent: #c4803a;
+    --accent-light: #f5e8d8;
+    --green: #3d7a55;
+    --red: #b44040;
+    --shadow: 0 2px 20px rgba(0,0,0,0.07);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: 'Source Sans 3', sans-serif; color: var(--black); font-size: 15px; line-height: 1.5; }
+
+  /* HEADER */
+  header {
+    background: var(--black);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 68px;
+    position: sticky; top: 0; z-index: 200;
+  }
+  .logo-wrap img { height: 36px; width: auto; display: block; }
+  .header-tag {
+    background: var(--accent); color: #fff;
+    font-size: 11px; font-weight: 600;
+    padding: 4px 12px; border-radius: 20px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  /* HERO */
+  .hero { background: var(--black); padding: 52px 40px 48px; border-bottom: 3px solid var(--accent); }
+  .hero h1 { font-family: 'Caveat', cursive; font-size: 54px; color: #fff; line-height: 1; margin-bottom: 10px; font-weight: 700; }
+  .hero h1 span { color: var(--accent); }
+  .hero p { color: #999; font-size: 15px; font-weight: 300; max-width: 540px; }
+
+  /* MAIN */
+  .main { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* SECTION */
+  .section { background: var(--white); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; overflow: hidden; box-shadow: var(--shadow); }
+  .section-head { display: flex; align-items: center; gap: 14px; padding: 20px 24px; border-bottom: 1px solid var(--border); background: #fafafa; }
+  .step-num { width: 30px; height: 30px; background: var(--black); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+  .section-head h2 { font-family: 'Caveat', cursive; font-size: 22px; font-weight: 700; color: var(--black); margin: 0; }
+  .section-head p { font-size: 13px; color: var(--light); margin-top: 1px; }
+  .section-body { padding: 24px; }
+
+  /* FORM */
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .field > label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--mid); margin-bottom: 6px; }
+  input[type="text"], input[type="password"], input[type="number"], select, textarea {
+    width: 100%; padding: 11px 14px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: 'Source Sans 3', sans-serif; font-size: 14px; color: var(--black);
+    background: #fdfdfd; outline: none; transition: border-color 0.18s, box-shadow 0.18s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,128,58,0.12); background: #fff; }
+  textarea { resize: vertical; min-height: 90px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* API ROW */
+  .key-row { display: flex; gap: 8px; }
+  .key-row .pw-wrap { flex: 1; position: relative; }
+  .key-row .pw-wrap input { padding-right: 40px; }
+  .pw-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 15px; color: var(--light); }
+  .btn-small { padding: 11px 16px; background: var(--accent-light); border: 1.5px solid #ddd; border-radius: 8px; font-family: 'Source Sans 3', sans-serif; font-size: 13px; color: var(--black); cursor: pointer; white-space: nowrap; transition: background 0.15s; font-weight: 500; }
+  .btn-small:hover { background: #ead5bb; }
+  .key-hint { font-size: 11px; color: var(--light); margin-top: 5px; }
+
+  /* CHIPS */
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+  .chip { padding: 5px 13px; border: 1.5px solid var(--border); border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; color: var(--mid); background: #fafafa; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip.active { background: var(--black); color: #fff; border-color: var(--black); }
+
+  /* TONE */
+  .tone-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tone-btn { flex: 1; min-width: 90px; padding: 10px 8px; border: 1.5px solid var(--border); border-radius: 8px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; background: #fafafa; color: var(--mid); }
+  .tone-btn .icon { font-size: 20px; display: block; margin-bottom: 3px; }
+  .tone-btn:hover { border-color: var(--accent); }
+  .tone-btn.active { background: var(--black); color: #fff; border-color: var(--black); }
+
+  /* UPLOAD */
+  .upload-zone { position: relative; border: 2px dashed var(--border); border-radius: 10px; padding: 28px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafafa; }
+  .upload-zone:hover { border-color: var(--accent); background: var(--accent-light); }
+  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; font-size: 0; border: none; background: transparent; padding: 0; }
+  .upload-icon { font-size: 30px; display: block; margin-bottom: 6px; }
+  .upload-label { font-size: 14px; color: var(--mid); }
+  .upload-label strong { color: var(--black); }
+  .upload-sub { font-size: 12px; color: var(--light); margin-top: 3px; }
+
+  /* IMAGE GRID */
+  .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-top: 16px; }
+  .img-card { position: relative; border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; }
+  .img-card img { width: 100%; height: 110px; object-fit: cover; display: block; }
+  .img-footer { padding: 6px 8px; font-size: 11px; background: #fafafa; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+  .img-num { background: var(--black); color: #fff; border-radius: 4px; padding: 1px 5px; font-size: 10px; font-weight: 600; flex-shrink: 0; }
+  .img-name { font-size: 10px; color: var(--light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .img-del { position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+  .img-del:hover { background: var(--red); }
+
+  .count-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--black); color: #fff; padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-top: 14px; }
+  .count-badge b { color: var(--accent); font-size: 16px; }
+
+  /* USP */
+  .usp-list { display: flex; flex-direction: column; gap: 5px; max-height: 210px; overflow-y: auto; }
+  .usp-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; background: #fafafa; transition: background 0.12s; }
+  .usp-row:hover { background: var(--accent-light); }
+  .usp-row input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; }
+  .usp-row label { flex: 1; cursor: pointer; font-size: 13px; }
+  .usp-del { background: none; border: none; cursor: pointer; color: #ccc; font-size: 14px; padding: 0 2px; transition: color 0.12s; }
+  .usp-del:hover { color: var(--red); }
+  .add-row { display: flex; gap: 8px; margin-top: 10px; }
+  .add-row input { flex: 1; }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* GENERATE BTN */
+  .btn-gen { width: 100%; padding: 18px; background: var(--black); color: #fff; border: none; border-radius: 10px; font-family: 'Caveat', cursive; font-size: 22px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; letter-spacing: 0.02em; margin-top: 8px; }
+  .btn-gen:hover:not(:disabled) { background: #333; transform: translateY(-1px); }
+  .btn-gen:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* PROGRESS */
+  .progress-box { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 28px 24px; margin-bottom: 20px; display: none; box-shadow: var(--shadow); }
+  .progress-box.show { display: block; }
+  .progress-box h3 { font-family: 'Caveat', cursive; font-size: 22px; font-weight: 700; margin-bottom: 18px; }
+  .bar-bg { background: var(--border); border-radius: 100px; height: 7px; overflow: hidden; margin-bottom: 10px; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #e8a05a); border-radius: 100px; transition: width 0.35s ease; width: 0%; }
+  .bar-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--light); }
+  .log-box { margin-top: 14px; display: flex; flex-direction: column; gap: 4px; max-height: 170px; overflow-y: auto; }
+  .log-line { font-size: 12px; padding: 5px 10px; border-radius: 6px; background: #f5f5f5; border-left: 3px solid #ddd; color: var(--mid); }
+  .log-line.ok { border-left-color: var(--green); color: var(--green); }
+  .log-line.err { border-left-color: var(--red); color: var(--red); }
+
+  /* RESULT */
+  .result-box { background: var(--white); border: 1.5px solid var(--green); border-radius: 12px; padding: 28px 24px; margin-bottom: 20px; display: none; box-shadow: var(--shadow); }
+  .result-box.show { display: block; }
+  .result-box h3 { font-family: 'Caveat', cursive; font-size: 26px; font-weight: 700; color: var(--green); margin-bottom: 4px; }
+  .result-sub { font-size: 13px; color: var(--light); margin-bottom: 22px; }
+  .tbl-wrap { overflow-x: auto; margin-bottom: 20px; }
+  table.prev { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.prev th { background: var(--black); color: #fff; padding: 9px 11px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; white-space: nowrap; }
+  table.prev td { padding: 9px 11px; border-bottom: 1px solid var(--border); vertical-align: top; max-width: 200px; }
+  table.prev tr:nth-child(even) td { background: #fafafa; }
+  .clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .result-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-dl { padding: 14px 28px; background: var(--green); color: #fff; border: none; border-radius: 8px; font-family: 'Caveat', cursive; font-size: 18px; font-weight: 700; cursor: pointer; transition: all 0.18s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-dl:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-reset { padding: 14px 22px; background: transparent; color: var(--mid); border: 1.5px solid var(--border); border-radius: 8px; font-family: 'Source Sans 3', sans-serif; font-size: 14px; cursor: pointer; transition: all 0.15s; font-weight: 500; }
+  .btn-reset:hover { border-color: var(--mid); color: var(--black); }
+
+  /* ALERT */
+  .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; font-weight: 500; }
+  .alert.error { background: #feeaea; border: 1px solid #f5c0c0; color: var(--red); display: block; }
+  .alert.info { background: var(--accent-light); border: 1px solid #ddc9af; color: #7a4a1a; display: block; }
+
+  @media (max-width: 640px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    header { padding: 0 16px; }
+    .hero { padding: 36px 16px 32px; }
+    .hero h1 { font-size: 38px; }
+    .main { padding: 24px 12px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <img src="data:image/jpeg;base64,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" alt="ToF">
+  </div>
+  <div class="header-tag">AI Import Generator</div>
+</header>
+
+<div class="hero">
+  <h1>Maak je <span>importbestand</span></h1>
+  <p>Upload productafbeeldingen — elke afbeelding wordt automatisch één product. Upload 7 afbeeldingen → 7 producten.</p>
+</div>
+
+<div class="main">
+  <div id="alertBox" class="alert"></div>
+
+  <!-- STAP 1 -->
+  <div class="section">
+    <div class="section-head">
+      <div class="step-num">1</div>
+      <div><h2>API Key</h2><p>Wordt lokaal opgeslagen in jouw browser — nooit gedeeld</p></div>
+    </div>
+    <div class="section-body">
+      <div class="field">
+        <label>Anthropic API Key</label>
+        <div class="key-row">
+          <div class="pw-wrap">
+            <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off">
+            <button class="pw-toggle" onclick="togglePw()">👁</button>
+          </div>
+          <button class="btn-small" onclick="saveKey()">Opslaan</button>
+        </div>
+        <div class="key-hint" id="keyStatus">Haal je key op via console.anthropic.com → API Keys</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAP 2 -->
+  <div class="section">
+    <div class="section-head">
+      <div class="step-num">2</div>
+      <div><h2>Productinformatie</h2><p>Vul in wat voor producten je gaat genereren</p></div>
+    </div>
+    <div class="section-body">
+      <div class="grid-2">
+        <div class="field">
+          <label>Producttype *</label>
+          <input type="text" id="productType" placeholder="bijv. Fleece Deken, Sierkussen">
+        </div>
+        <div class="field">
+          <label>SKU Prefix</label>
+          <input type="text" id="skuPrefix" placeholder="bijv. FD_, SK_" maxlength="8">
+        </div>
+      </div>
+      <div class="field">
+        <label>Hoofdcategorie</label>
+        <input type="text" id="categorie" placeholder="bijv. fleece-deken, sierkussen, wanddecoratie">
+      </div>
+      <div class="field">
+        <label>Subcategorie *</label>
+        <input type="text" id="subcategorie" placeholder="bijv. bloemen-florals, abstract, maritiem">
+        <div class="chips">
+          <span class="chip" onclick="pickSubcat(this,'bloemen-florals')">🌸 bloemen-florals</span>
+          <span class="chip" onclick="pickSubcat(this,'abstract')">◈ abstract</span>
+          <span class="chip" onclick="pickSubcat(this,'boho')">✦ boho</span>
+          <span class="chip" onclick="pickSubcat(this,'botanisch')">🌿 botanisch</span>
+          <span class="chip" onclick="pickSubcat(this,'dieren')">🦋 dieren</span>
+          <span class="chip" onclick="pickSubcat(this,'maritiem')">⚓ maritiem</span>
+          <span class="chip" onclick="pickSubcat(this,'hotel-chique')">✨ hotel-chique</span>
+          <span class="chip" onclick="pickSubcat(this,'tekst')">Aa tekst</span>
+          <span class="chip" onclick="pickSubcat(this,'natuur')">🌲 natuur</span>
+          <span class="chip" onclick="pickSubcat(this,'steden')">🏙 steden</span>
+          <span class="chip" onclick="pickSubcat(this,'kunst')">🎨 kunst</span>
+          <span class="chip" onclick="pickSubcat(this,'geometrisch')">⬡ geometrisch</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Ruimtes (komma-gescheiden)</label>
+        <input type="text" id="ruimtes" placeholder="bijv. woonkamer, slaapkamer, kinderkamer">
+      </div>
+      <div class="field">
+        <label>Toon van de teksten</label>
+        <div class="tone-row">
+          <div class="tone-btn active" onclick="pickTone(this,'warm')"><span class="icon">🤍</span>Warm</div>
+          <div class="tone-btn" onclick="pickTone(this,'luxe')"><span class="icon">✨</span>Luxe</div>
+          <div class="tone-btn" onclick="pickTone(this,'speels')"><span class="icon">🎨</span>Speels</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAP 3 -->
+  <div class="section">
+    <div class="section-head">
+      <div class="step-num">3</div>
+      <div><h2>Afbeeldingen uploaden</h2><p>1 afbeelding = 1 product &nbsp;·&nbsp; upload 7 foto's → 7 producten</p></div>
+    </div>
+    <div class="section-body">
+      <div class="upload-zone">
+        <input type="file" id="imgInput" accept="image/*" multiple onchange="handleImgs(event)">
+        <span class="upload-icon">📷</span>
+        <div class="upload-label"><strong>Klik of sleep afbeeldingen hierin</strong></div>
+        <div class="upload-sub">JPG, PNG, WEBP &nbsp;·&nbsp; maximaal 20 afbeeldingen tegelijk</div>
+      </div>
+      <div class="img-grid" id="imgGrid"></div>
+      <div id="countBadge" style="display:none;">
+        <div class="count-badge"><b id="cnt1">0</b> afbeeldingen geüpload → <b id="cnt2">0</b> producten worden gegenereerd</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAP 4 -->
+  <div class="section">
+    <div class="section-head">
+      <div class="step-num">4</div>
+      <div><h2>USP's</h2><p>De AI varieert automatisch welke USP's per product worden ingezet</p></div>
+    </div>
+    <div class="section-body">
+      <div class="usp-list" id="uspList"></div>
+      <div class="divider"></div>
+      <div class="field">
+        <label>Nieuwe USP toevoegen</label>
+        <div class="add-row">
+          <input type="text" id="newUsp" placeholder="bijv. Op maat gemaakt in Nederland">
+          <button class="btn-small" onclick="addUsp()">+ Toevoegen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAP 5 -->
+  <div class="section">
+    <div class="section-head">
+      <div class="step-num">5</div>
+      <div><h2>Extra instructies</h2><p>Optioneel — geef de AI extra aanwijzingen mee</p></div>
+    </div>
+    <div class="section-body">
+      <textarea id="extraInstr" placeholder="bijv. Vermeld altijd dat het product wasbaar is op 30 graden. Gebruik het woord 'geweldig' niet."></textarea>
+    </div>
+  </div>
+
+  <button class="btn-gen" id="genBtn" onclick="generate()">✦ &nbsp;Genereer importbestand</button>
+
+  <!-- PROGRESS -->
+  <div class="progress-box" id="progressBox">
+    <h3>⚙️ Bezig met genereren...</h3>
+    <div class="bar-bg"><div class="bar-fill" id="barFill"></div></div>
+    <div class="bar-meta"><span id="barTxt">Product 0 van 0</span><span id="barPct">0%</span></div>
+    <div class="log-box" id="logBox"></div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-box" id="resultBox">
+    <h3>✅ Importbestand klaar!</h3>
+    <div class="result-sub" id="resultSub"></div>
+    <div class="tbl-wrap"><table class="prev" id="prevTable"></table></div>
+    <div class="result-actions">
+      <button class="btn-dl" onclick="dlXlsx()">⬇ Download Excel</button>
+      <button class="btn-reset" onclick="resetAll()">↺ Nieuw bestand</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let imgs = [], products = [], tone = 'warm';
+
+const DEFAULT_USPS = [
+  'Gratis verzending','Geen extra kosten','Superieure kwaliteit voor een scherpe prijs',
+  'Unieke designs','Ruime keuze aan stijlen','Uitgebreid assortiment',
+  'Altijd iets dat bij jouw interieur past','Keuze uit meerdere materialen',
+  'Verkrijgbaar in verschillende formaten','Perfect te combineren met behang en wanddecoratie',
+  'Makkelijk te bestellen','Veilig betalen','Snelle levering','Zorgvuldig en stevig verpakt',
+  'Uitstekende klantenservice','We helpen je snel en persoonlijk','Betrouwbare service',
+  'Altijd een passende oplossing','Op maat gemaakt in Nederland','Milieuvriendelijk / Eco-friendly',
+];
+let uspArr = [...DEFAULT_USPS];
+
+window.onload = () => {
+  renderUsps();
+  const k = localStorage.getItem('tof_key');
+  if (k) { document.getElementById('apiKey').value = k; document.getElementById('keyStatus').textContent = '✓ API key geladen'; }
+};
+
+// API KEY
+function togglePw() { const i = document.getElementById('apiKey'); i.type = i.type==='password'?'text':'password'; }
+function saveKey() {
+  const k = document.getElementById('apiKey').value.trim();
+  if (!k.startsWith('sk-ant-')) { alert('Geen geldige Anthropic API key (begint met sk-ant-)'); return; }
+  localStorage.setItem('tof_key', k);
+  document.getElementById('keyStatus').textContent = '✓ Opgeslagen in browser';
+}
+
+// SUBCAT + TONE
+function pickSubcat(el, v) {
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('subcategorie').value = v;
+  const pt = (document.getElementById('productType').value||'product').toLowerCase().replace(/\s+/g,'-');
+  const rm = {'bloemen-florals':'woonkamer, slaapkamer','abstract':'woonkamer, slaapkamer','boho':'woonkamer, slaapkamer','botanisch':'woonkamer, slaapkamer','dieren':'woonkamer, slaapkamer, kinderkamer','maritiem':'woonkamer, slaapkamer','hotel-chique':'woonkamer, slaapkamer','tekst':'woonkamer, slaapkamer','natuur':'woonkamer, slaapkamer','steden':'woonkamer, slaapkamer, kantoor','kunst':'woonkamer, slaapkamer, kantoor','geometrisch':'woonkamer, slaapkamer'};
+  if (rm[v]) document.getElementById('ruimtes').value = rm[v].split(', ').map(r=>`${pt}-${r}`).join(', ');
+}
+function pickTone(el, v) { document.querySelectorAll('.tone-btn').forEach(b=>b.classList.remove('active')); el.classList.add('active'); tone=v; }
+
+// IMAGES
+function handleImgs(e) {
+  const files = Array.from(e.target.files);
+  let pending = files.length;
+  if (!pending) return;
+  files.forEach(f => {
+    if (imgs.length >= 20) { pending--; if(!pending) renderImgs(); return; }
+    const r = new FileReader();
+    r.onload = ev => { imgs.push({file:f, dataUrl:ev.target.result}); pending--; if(!pending) renderImgs(); };
+    r.readAsDataURL(f);
+  });
+  e.target.value = '';
+}
+
+function renderImgs() {
+  const g = document.getElementById('imgGrid');
+  const b = document.getElementById('countBadge');
+  const n = imgs.length;
+  g.innerHTML = imgs.map((img,i)=>`
+    <div class="img-card">
+      <img src="${img.dataUrl}" alt="product ${i+1}">
+      <button class="img-del" onclick="delImg(${i})">✕</button>
+      <div class="img-footer">
+        <span class="img-num">Product ${i+1}</span>
+        <span class="img-name">${img.file.name}</span>
+      </div>
+    </div>`).join('');
+  if (n > 0) {
+    b.style.display = 'block';
+    document.getElementById('cnt1').textContent = n;
+    document.getElementById('cnt2').textContent = n;
+  } else { b.style.display = 'none'; }
+}
+function delImg(i) { imgs.splice(i,1); renderImgs(); }
+
+// USPs
+function renderUsps() {
+  document.getElementById('uspList').innerHTML = uspArr.map((u,i)=>`
+    <div class="usp-row">
+      <input type="checkbox" id="u${i}" checked>
+      <label for="u${i}">${u}</label>
+      <button class="usp-del" onclick="delUsp(${i})">✕</button>
+    </div>`).join('');
+}
+function addUsp() { const v=document.getElementById('newUsp').value.trim(); if(!v)return; uspArr.push(v); document.getElementById('newUsp').value=''; renderUsps(); }
+function delUsp(i) { uspArr.splice(i,1); renderUsps(); }
+function activeUsps() { return uspArr.filter((_,i)=>{ const cb=document.getElementById(`u${i}`); return cb&&cb.checked; }); }
+
+// ALERT
+function showAlert(msg) {
+  const el=document.getElementById('alertBox'); el.textContent=msg; el.className='alert error';
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function hideAlert() { document.getElementById('alertBox').className='alert'; }
+
+// GENERATE
+async function generate() {
+  hideAlert();
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const pType  = document.getElementById('productType').value.trim();
+  const subcat = document.getElementById('subcategorie').value.trim();
+  const cat    = document.getElementById('categorie').value.trim() || pType.toLowerCase().replace(/\s+/g,'-');
+  const prefix = document.getElementById('skuPrefix').value.trim().toUpperCase() || pType.substring(0,2).toUpperCase()+'_';
+  const ruimtes= document.getElementById('ruimtes').value.trim();
+  const extra  = document.getElementById('extraInstr').value.trim();
+  const usps   = activeUsps();
+
+  if (!apiKey) return showAlert('Vul je API key in bij stap 1.');
+  if (!pType)  return showAlert('Vul een producttype in bij stap 2.');
+  if (!subcat) return showAlert('Vul een subcategorie in bij stap 2.');
+  if (imgs.length === 0) return showAlert('Upload minimaal 1 afbeelding bij stap 3. Elke afbeelding wordt 1 product.');
+  if (usps.length < 2)  return showAlert('Selecteer minimaal 2 USP\'s bij stap 4.');
+
+  document.getElementById('genBtn').disabled = true;
+  document.getElementById('progressBox').classList.add('show');
+  document.getElementById('resultBox').classList.remove('show');
+  document.getElementById('logBox').innerHTML = '';
+  products = [];
+
+  const total = imgs.length;
+  const toneMap = { warm:'warm, uitnodigend en huiselijk', luxe:'luxueus, verfijnd en chique', speels:'vrolijk, speels en energiek' };
+
+  for (let i = 0; i < total; i++) {
+    setBar(i, total);
+    log(`⏳ Product ${i+1} genereren op basis van: ${imgs[i].file.name}`);
+
+    const usp1 = usps[i % usps.length];
+    const usp2 = usps[(i+3) % usps.length];
+    const b64  = imgs[i].dataUrl.split(',')[1];
+    const mime = imgs[i].file.type || 'image/jpeg';
+
+    const prompt = `Je bent een Nederlandse copywriter voor tofvoorjou.nl, een webshop voor interieurproducten.
+
+Analyseer de meegestuurde productafbeelding heel goed: let op de kleuren, het patroon, de stijl en de sfeer van het product.
+Genereer product ${i+1} van ${total} in de categorie "${subcat}" voor het producttype "${pType}".
+Schrijf in een ${toneMap[tone]} toon.
+
+Beschikbare USP's (gebruik er precies 2, varieer slim):
+${usps.map(u=>`- ${u}`).join('\n')}
+
+Gebruik voor dit product bij voorkeur:
+- "${usp1}"
+- "${usp2}"
+
+${extra ? `Extra instructies: ${extra}` : ''}
+
+Antwoord UITSLUITEND in dit exacte JSON formaat — geen andere tekst:
+{
+  "naam_suffix": "2-5 beschrijvende woorden gebaseerd op wat je ZIET in de afbeelding, bijv. 'Bloemen Roze Pastel' of 'Abstract Blauw Goud'",
+  "omschrijving": "2-4 zinnen. Beschrijf de kleuren, het patroon en de sfeer die je ZIET. Verwerk 2 USPs. Eindig met: Verkrijgbaar in verschillende formaten.",
+  "meta_title": "${pType.toLowerCase()} [naam in kleine letters] | ToF",
+  "meta_descr": "[Naam] | ToF &#10004;&#65039;${usp1} &#10004;&#65039;${usp2}",
+  "focus_keyword": "2-3 woorden focus keyword",
+  "kleur": "1-3 woorden kleuromschrijving vanuit de afbeelding",
+  "alt_tag": "korte beschrijving van wat er op de afbeelding staat, max 10 woorden"
+}`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: [
+              { type:'image', source:{ type:'base64', media_type:mime, data:b64 } },
+              { type:'text', text:prompt }
+            ]
+          }]
+        })
+      });
+
+      if (!res.ok) { const e=await res.json(); throw new Error(e.error?.message||`HTTP ${res.status}`); }
+      const data = await res.json();
+      const raw  = data.content[0].text.trim();
+      const m    = raw.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('Geen geldig JSON antwoord ontvangen');
+      const p = JSON.parse(m[0]);
+
+      const skuN   = String(i+1).padStart(2,'0');
+      const subAb  = subcat.toUpperCase().replace(/-/g,'_').substring(0,4);
+      const sku    = `${prefix}${subAb}_${skuN}`;
+      const naam   = `ToF ${pType} ${p.naam_suffix}`;
+      const catSlug= cat;
+
+      products.push({
+        prodId:'', prodsku:sku, soort:pType.toLowerCase(), naam,
+        omschrijving:p.omschrijving, categorie:catSlug,
+        subcategorie:`${catSlug}-${subcat}`, subsubcategorie:'',
+        img_website1:'', img_website2:'',
+        alt_tag_img: p.alt_tag || `${pType.toLowerCase()} ${p.naam_suffix.toLowerCase()} van ToF`,
+        drukbestand:'', meta_descr:p.meta_descr, meta_title:p.meta_title,
+        focus_keyword:p.focus_keyword, tags:subcat,
+        image_src1:'', image_src2:'', kleuren:p.kleur||'',
+        import_feedback:'', api_code:'', dirty:0,
+        ruimtes: ruimtes||`${catSlug}-woonkamer, ${catSlug}-slaapkamer`
+      });
+
+      log(`✅ Product ${i+1}: ${naam}`, 'ok');
+    } catch(err) {
+      log(`❌ Product ${i+1} mislukt: ${err.message}`, 'err');
+    }
+
+    if (i < total-1) await new Promise(r=>setTimeout(r,350));
+  }
+
+  setBar(total, total);
+  document.getElementById('genBtn').disabled = false;
+
+  if (products.length === 0) {
+    showAlert('Geen producten gegenereerd. Controleer je API key en probeer opnieuw.');
+    document.getElementById('progressBox').classList.remove('show');
+    return;
+  }
+
+  showResult(pType, subcat);
+}
+
+function setBar(c,t) {
+  const p = t>0?Math.round(c/t*100):0;
+  document.getElementById('barFill').style.width=p+'%';
+  document.getElementById('barTxt').textContent=`Product ${c} van ${t}`;
+  document.getElementById('barPct').textContent=p+'%';
+}
+function log(msg,type='') {
+  const b=document.getElementById('logBox');
+  const d=document.createElement('div');
+  d.className=`log-line ${type}`; d.textContent=msg;
+  b.appendChild(d); b.scrollTop=b.scrollHeight;
+}
+
+function showResult(pType, subcat) {
+  const box=document.getElementById('resultBox');
+  box.classList.add('show');
+  document.getElementById('resultSub').textContent=`${products.length} producten gegenereerd voor ${pType} — ${subcat}. Controleer de preview en download.`;
+  const cols=['prodsku','naam','omschrijving','meta_title','meta_descr','focus_keyword'];
+  document.getElementById('prevTable').innerHTML=`
+    <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>
+      ${products.slice(0,6).map(p=>`<tr>${cols.map(c=>`<td><div class="clamp">${p[c]||''}</div></td>`).join('')}</tr>`).join('')}
+      ${products.length>6?`<tr><td colspan="${cols.length}" style="text-align:center;color:#aaa;font-style:italic;padding:10px;">... en ${products.length-6} meer producten</td></tr>`:''}
+    </tbody>`;
+  box.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function dlXlsx() {
+  const pt=document.getElementById('productType').value.trim();
+  const sc=document.getElementById('subcategorie').value.trim();
+  const dt=new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const fn=`Import_${pt.replace(/\s+/g,'_')}_${sc.replace(/-/g,'_')}_${dt}.xlsx`;
+  const ws=XLSX.utils.json_to_sheet(products);
+  ws['!cols']=[{wch:8},{wch:18},{wch:14},{wch:36},{wch:65},{wch:20},{wch:28},{wch:15},{wch:16},{wch:16},{wch:32},{wch:16},{wch:55},{wch:38},{wch:22},{wch:16},{wch:28},{wch:28},{wch:12},{wch:16},{wch:12},{wch:8},{wch:42}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Import');
+  XLSX.writeFile(wb,fn);
+}
+
+function resetAll() {
+  imgs=[]; products=[];
+  renderImgs();
+  document.getElementById('resultBox').classList.remove('show');
+  document.getElementById('progressBox').classList.remove('show');
+  ['productType','subcategorie','categorie','skuPrefix','ruimtes','extraInstr'].forEach(id=>document.getElementById(id).value='');
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
